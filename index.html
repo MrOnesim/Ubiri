@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trouver un ouvrier</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="font-sans">
+
+  <!-- HERO SECTION -->
+  <section
+    class="relative min-h-[85vh] bg-cover bg-center flex items-center justify-center"
+    style="background-image: url('https://images.unsplash.com/photo-1581092919534-5e6c93a91b49');"
+  >
+    <!-- Overlay -->
+    <div class="absolute inset-0 bg-black/60"></div>
+
+    <!-- Content -->
+    <div class="relative z-10 w-full px-4">
+      <div class="max-w-4xl mx-auto text-center text-white">
+
+        <!-- Title -->
+        <h1 class="text-3xl md:text-5xl font-bold mb-4">
+          Trouvez un Ouvrier <br class="hidden md:block" />
+          près de chez vous
+        </h1>
+
+        <!-- Subtitle -->
+        <p class="text-sm md:text-lg mb-10 text-gray-200">
+          Trouvez rapidement un mécanicien, électricien, plombier et plus encore.
+        </p>
+
+        <!-- Search Box -->
+        <div class="bg-white rounded-xl shadow-xl p-4 md:p-6">
+          <form class="flex flex-col md:flex-row gap-4">
+
+            <!-- Métier -->
+            <div class="flex-1">
+              <label class="block text-left text-sm font-medium text-gray-700 mb-1">
+                Métier
+              </label>
+              <select
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option>Sélectionnez un métier</option>
+                <option>Mécanicien</option>
+                <option>Électricien</option>
+                <option>Plombier</option>
+                <option>Maçon</option>
+              </select>
+            </div>
+
+            <!-- Ville -->
+            <div class="flex-1">
+              <label class="block text-left text-sm font-medium text-gray-700 mb-1">
+                Ville
+              </label>
+              <input
+                type="text"
+                placeholder="Entrez votre ville"
+                class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+              />
+            </div>
+
+            <!-- Button -->
+            <div class="flex items-end">
+              <button
+                type="submit"
+                class="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-semibold px-8 py-3 rounded-lg transition"
+              >
+                Rechercher
+              </button>
+            </div>
+
+          </form>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>
