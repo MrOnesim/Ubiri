@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ubiri</string>
+    <string name="title_activity_main">Ubiri</string>
+    <string name="package_name">africa.ubiri.app</string>
+    <string name="custom_url_scheme">africa.ubiri.app</string>
+</resources>
