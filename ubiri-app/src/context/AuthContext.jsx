@@ -5,14 +5,7 @@ import plumberImg from '../assets/images/plumber.png';
 import carpenterImg from '../assets/images/carpenter.png';
 
 const AuthContext = createContext(null);
-
-// Professional SHA-256 hashing for client-side preparation
-async function secureHash(password) {
-  const msgUint8 = new TextEncoder().encode(password + 'ubiri_secure_salt_2024');
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 function getCurrentUser() {
   try {
@@ -24,14 +17,24 @@ function getCurrentUser() {
   }
 }
 
+function getAuthToken() {
+  try {
+    return localStorage.getItem('ubiri_token');
+  } catch (err) {
+    console.error("AuthContext: Token retrieval error", err);
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUserState] = useState(getCurrentUser);
+  const [authToken, setAuthTokenState] = useState(getAuthToken);
   const [marketplaceProducts, setMarketplaceProducts] = useState(() => {
     return JSON.parse(localStorage.getItem('ubiri_marketplace')) || [
-      { id: 1, name: 'Perceuse à Percussion Bosch', price: 45000, description: 'Puissance 600W, idéale pour béton et bois.', category: 'Outillage', imageUrl: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=80&w=400' },
-      { id: 2, name: 'Caisse à outils complète', price: 25000, description: '150 pièces en acier chrome-vanadium.', category: 'Outillage', imageUrl: 'https://images.unsplash.com/photo-1586864387917-f579ae5259ea?auto=format&fit=crop&q=80&w=400' },
-      { id: 3, name: 'Poste à souder Inverter', price: 85000, description: 'Léger et puissant, pour tous types d\'électrodes.', category: 'Soudure', imageUrl: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?auto=format&fit=crop&q=80&w=400' },
-      { id: 4, name: 'Lot de 5 Projecteurs LED 50W', price: 30000, description: 'Éclairage extérieur haute performance.', category: 'Électricité', imageUrl: 'https://images.unsplash.com/photo-1565814636199-ae8133055c1c?auto=format&fit=crop&q=80&w=400' },
+      { id: 1, name: 'Perceuse à Percussion Bosch', price: 45000, description: 'Puissance 600W, idéale pour béton et bois.', category: 'Outillage', imageUrl: 'https://images.unsplash.com/photo-1' },
+      { id: 2, name: 'Caisse à outils complète', price: 25000, description: '150 pièces en acier chrome-vanadium.', category: 'Outillage', imageUrl: 'https://images.unsplash.com/photo-2' },
+      { id: 3, name: 'Poste à souder Inverter', price: 85000, description: 'Léger et puissant, pour tous types d\'électrodes.', category: 'Soudure', imageUrl: 'https://images.unsplash.com/photo-3' },
+      { id: 4, name: 'Lot de 5 Projecteurs LED 50W', price: 30000, description: 'Éclairage extérieur haute performance.', category: 'Électricité', imageUrl: 'https://images.unsplash.com/photo-4' },
     ];
   });
   const [cart, setCart] = useState(() => JSON.parse(localStorage.getItem('ubiri_cart')) || []);
@@ -41,59 +44,74 @@ export function AuthProvider({ children }) {
   const setCurrentUser = useCallback((value) => {
     if (value === null) {
       localStorage.removeItem('ubiri_user');
+      localStorage.removeItem('ubiri_token');
     } else {
       localStorage.setItem('ubiri_user', JSON.stringify(value));
     }
     setCurrentUserState(value);
   }, []);
 
-  const signup = useCallback(async (userData) => {
-    const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-    if (users.find((u) => u.email === userData.email)) {
-      throw new Error('Cet email est déjà utilisé.');
+  const setAuthToken = useCallback((token) => {
+    if (token === null) {
+      localStorage.removeItem('ubiri_token');
+    } else {
+      localStorage.setItem('ubiri_token', token);
     }
-    
-    const hashedPassword = await secureHash(userData.password);
-    
-    const newUser = {
-      id: Date.now(),
-      ...userData,
-      password: hashedPassword,
-      products: [],
-      inquiries: [],
-      favorites: [],
-      notifications: [],
-      interventions: [],
-      createdAt: new Date().toISOString(),
-      // Simulation de coordonnées GPS pour la cartographie
-      ...(userData.role === 'worker' ? {
-        lat: 6.3654 + (Math.random() - 0.5) * 0.1,
-        lng: 2.4183 + (Math.random() - 0.5) * 0.1
-      } : {})
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('ubiri_users', JSON.stringify(users));
-    setCurrentUser(newUser);
-    return newUser;
-  }, [setCurrentUser]);
+    setAuthTokenState(token);
+  }, []);
+
+  const signup = useCallback(async (userData) => {
+    try {
+      const response = await fetch(`${API_URL}/api/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erreur lors de l\'inscription');
+      }
+
+      const { user, token } = await response.json();
+      setCurrentUser(user);
+      setAuthToken(token);
+      return user;
+    } catch (err) {
+      console.error('Signup error:', err);
+      throw err;
+    }
+  }, [setCurrentUser, setAuthToken]);
 
   const login = useCallback(async (email, password) => {
-    const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-    const hashed = await secureHash(password);
-    const user = users.find((u) => u.email === email && u.password === hashed);
-    
-    if (!user) throw new Error('Email ou mot de passe incorrect.');
-    
-    setCurrentUser(user);
-    return user;
-  }, [setCurrentUser]);
+    try {
+      const response = await fetch(`${API_URL}/api/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Erreur lors de la connexion');
+      }
+
+      const { user, token } = await response.json();
+      setCurrentUser(user);
+      setAuthToken(token);
+      return user;
+    } catch (err) {
+      console.error('Login error:', err);
+      throw err;
+    }
+  }, [setCurrentUser, setAuthToken]);
 
   const logout = useCallback(() => {
     setCurrentUser(null);
-  }, [setCurrentUser]);
+    setAuthToken(null);
+  }, [setCurrentUser, setAuthToken]);
 
-  const isLoggedIn = () => currentUser !== null;
+  const isLoggedIn = () => currentUser !== null && authToken !== null;
   const getRole = () => currentUser?.role || null;
   const isAdmin = () => currentUser?.email === 'ubiri.africa@gmail.com';
 
@@ -429,7 +447,9 @@ export function AuthProvider({ children }) {
         lastMessage,
         unreadCount
       };
-    }).sort((a, b) => new Date(b.lastMessage.date) - new Date(a.lastMessage.date));
+    })
+    .filter(conv => conv.lastMessage) // FIX: Éviter undefined lastMessage
+    .sort((a, b) => new Date(b.lastMessage.date) - new Date(a.lastMessage.date));
   }, [currentUser]);
 
   const markAsRead = useCallback((otherUserId) => {
@@ -473,6 +493,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     currentUser,
+    authToken,
     signup, login, logout,
     isLoggedIn, getRole,
     publishServiceRequest,
