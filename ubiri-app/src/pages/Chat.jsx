@@ -6,12 +6,13 @@ import Navbar from '../components/Navbar';
 export default function Chat() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser, getMessages, sendMessage, markAsRead, addReaction, getUserById } = useAuth();
+  const { currentUser, getMessages, sendMessage, markAsRead, addReaction, getUserById, uploadFile } = useAuth();
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
   const [interlocutor, setInterlocutor] = useState(null);
-   const [imageContent, setImageContent] = useState(null);
-   const [isTyping, setIsTyping] = useState(false);
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [isTyping, setIsTyping] = useState(false);
    const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -27,15 +28,20 @@ export default function Chat() {
     }
     setInterlocutor(user);
 
-    const loadMessages = () => {
-      setMessages(getMessages(id));
-      markAsRead(id);
-      
-      // Simulate typing when messages change (if not from current user)
-      const lastMsg = getMessages(id).pop();
-      if (lastMsg && lastMsg.fromId !== currentUser.id) {
-        setIsTyping(true);
-        setTimeout(() => setIsTyping(false), 2000);
+    const loadMessages = async () => {
+      try {
+        const msgs = await getMessages(id);
+        setMessages(msgs);
+        markAsRead(id);
+        
+        // Simulate typing when messages change (if not from current user)
+        const lastMsg = [...msgs].pop();
+        if (lastMsg && lastMsg.fromId !== currentUser.id) {
+          setIsTyping(true);
+          setTimeout(() => setIsTyping(false), 2000);
+        }
+      } catch (err) {
+        console.error("Failed to load messages:", err);
       }
     };
 
@@ -50,30 +56,35 @@ export default function Chat() {
     }
   }, [messages]);
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
-    if (!inputText.trim() && !imageContent) return;
-    sendMessage(id, inputText, imageContent);
+    if (!inputText.trim() && !mediaFile) return;
+    
+    let uploadedUrl = null;
+    if (mediaFile) {
+      const { url } = await uploadFile(mediaFile);
+      uploadedUrl = url;
+    }
+
+    await sendMessage(id, inputText, uploadedUrl);
     setInputText('');
-    setImageContent(null);
+    setMediaFile(null);
+    setMediaPreview(null);
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageContent(reader.result);
-      };
-      reader.readAsDataURL(file);
+      setMediaFile(file);
+      setMediaPreview(URL.createObjectURL(file));
     }
   };
 
-  const shareLocation = () => {
+  const shareLocation = async () => {
     const mockLat = 6.3654;
     const mockLng = 2.4183;
     const mapLink = `📍 Ma position : https://www.google.com/maps?q=${mockLat},${mockLng}`;
-    sendMessage(id, mapLink);
+    await sendMessage(id, mapLink);
   };
 
   const [isRecording, setIsRecording] = useState(false);
@@ -85,11 +96,11 @@ export default function Chat() {
     mediaRecorderRef.current = new MediaRecorder(stream);
     audioChunksRef.current = [];
     mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-    mediaRecorderRef.current.onstop = () => {
+    mediaRecorderRef.current.onstop = async () => {
       const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      const reader = new FileReader();
-      reader.onloadend = () => sendMessage(id, '', null, reader.result);
-      reader.readAsDataURL(blob);
+      const file = new File([blob], "voice_msg.webm", { type: 'audio/webm' });
+      const { url } = await uploadFile(file);
+      await sendMessage(id, '', null, url);
     };
     mediaRecorderRef.current.start();
     setIsRecording(true);
@@ -209,10 +220,10 @@ export default function Chat() {
 
       {/* Input Area */}
       <div className="p-4 md:p-6 bg-white dark:bg-gray-950 border-t border-neutral-100 dark:border-white/10">
-        {imageContent && (
+        {mediaPreview && (
           <div className="mb-4 relative w-32 h-32 group">
-            <img src={imageContent} className="w-full h-full object-cover rounded-2xl border-2 border-green-500" alt="Prévisualisation" />
-            <button onClick={() => setImageContent(null)} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg">
+            <img src={mediaPreview} className="w-full h-full object-cover rounded-2xl border-2 border-green-500" alt="Prévisualisation" />
+            <button onClick={() => { setMediaFile(null); setMediaPreview(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-lg">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -240,7 +251,7 @@ export default function Chat() {
               className="flex-1 bg-gray-100 dark:bg-gray-900 border-none rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500/50 text-sm"
             />
             
-            {inputText.trim() || imageContent ? (
+            {inputText.trim() || mediaFile ? (
               <button type="submit" className="p-3 bg-green-600 text-white rounded-xl shadow-lg hover:scale-105 transition-all">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg>
               </button>

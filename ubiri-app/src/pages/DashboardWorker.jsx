@@ -151,10 +151,10 @@ export default function DashboardWorker() {
 
           {/* Stats Cards */}
           <div className="grid grid-cols-3 gap-4 mb-8">
-            {[
-              { label: 'Services publiés', value: stats?.totalProducts || 0 },
-              { label: 'Vues totales', value: stats?.totalViews || 0 },
-              { label: 'Moy. vues/service', value: stats?.avgViews || 0 },
+          {[
+              { label: 'Services publiés', value: products.length },
+              { label: 'Vues totales', value: stats?.views || 0 },
+              { label: 'Moy. vues/service', value: products.length > 0 ? Math.round((stats?.views || 0) / products.length) : 0 },
             ].map((s, i) => (
               <div key={i} className="bg-white dark:bg-gray-900 rounded-2xl p-5 text-center border border-neutral-100 dark:border-white/5 shadow-sm">
                 <div className="text-2xl font-black text-green-600">{s.value}</div>

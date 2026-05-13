@@ -2,8 +2,9 @@ const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 
 async function setupDb() {
+  const isTest = process.env.NODE_ENV === 'test';
   const db = await open({
-    filename: './ubiri.db',
+    filename: isTest ? ':memory:' : './ubiri.db',
     driver: sqlite3.Database
   });
 
@@ -66,6 +67,23 @@ async function setupDb() {
       status TEXT,
       date TEXT,
       shippingInfo TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS wallets (
+      userId INTEGER PRIMARY KEY,
+      balance REAL DEFAULT 0,
+      transactions TEXT DEFAULT '[]'
+    );
+
+    CREATE TABLE IF NOT EXISTS kyc_submissions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER,
+      idType TEXT,
+      idFrontUrl TEXT,
+      idBackUrl TEXT,
+      status TEXT DEFAULT 'pending', -- pending, approved, rejected
+      submittedAt TEXT,
+      FOREIGN KEY(userId) REFERENCES users(id)
     );
   `);
 

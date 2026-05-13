@@ -91,7 +91,7 @@ export default function CommunityFeed() {
 
                 {/* Post Image */}
                 <div className="relative aspect-video">
-                  <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
+                  <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity flex items-end p-8">
                     <p className="text-white text-sm font-medium leading-relaxed">{post.description}</p>
                   </div>

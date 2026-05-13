@@ -3,6 +3,8 @@ import mechanicImg from '../assets/images/mechanic.png';
 import electricianImg from '../assets/images/electrician.png';
 import plumberImg from '../assets/images/plumber.png';
 import carpenterImg from '../assets/images/carpenter.png';
+import api from '../services/api';
+import { io } from 'socket.io-client';
 
 const AuthContext = createContext(null);
 
@@ -26,6 +28,7 @@ function getCurrentUser() {
 
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUserState] = useState(getCurrentUser);
+  const [socket, setSocket] = useState(null);
   const [marketplaceProducts, setMarketplaceProducts] = useState(() => {
     return JSON.parse(localStorage.getItem('ubiri_marketplace')) || [
       { id: 1, name: 'Perceuse à Percussion Bosch', price: 45000, description: 'Puissance 600W, idéale pour béton et bois.', category: 'Outillage', imageUrl: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=80&w=400' },
@@ -41,52 +44,53 @@ export function AuthProvider({ children }) {
   const setCurrentUser = useCallback((value) => {
     if (value === null) {
       localStorage.removeItem('ubiri_user');
+      if (socket) socket.disconnect();
+      setSocket(null);
     } else {
       localStorage.setItem('ubiri_user', JSON.stringify(value));
     }
     setCurrentUserState(value);
-  }, []);
+  }, [socket]);
+
+  useEffect(() => {
+    if (currentUser && !socket) {
+      const newSocket = io('http://localhost:5000');
+      newSocket.emit('join', currentUser.id);
+      
+      newSocket.on('new_message', (msg) => {
+        window.dispatchEvent(new Event('ubiri_new_message'));
+      });
+
+      newSocket.on('new_order', (order) => {
+        addNotification(currentUser.id, 'order', `Nouvelle commande !`, '/dashboard');
+      });
+
+      setSocket(newSocket);
+    }
+  }, [currentUser, socket]);
 
   const signup = useCallback(async (userData) => {
-    const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-    if (users.find((u) => u.email === userData.email)) {
-      throw new Error('Cet email est déjà utilisé.');
+    try {
+      const { user, token } = await api.signup(userData);
+      const userWithToken = { ...user, token };
+      setCurrentUser(userWithToken);
+      return userWithToken;
+    } catch (err) {
+      console.error("Signup error:", err);
+      throw err;
     }
-    
-    const hashedPassword = await secureHash(userData.password);
-    
-    const newUser = {
-      id: Date.now(),
-      ...userData,
-      password: hashedPassword,
-      products: [],
-      inquiries: [],
-      favorites: [],
-      notifications: [],
-      interventions: [],
-      createdAt: new Date().toISOString(),
-      // Simulation de coordonnées GPS pour la cartographie
-      ...(userData.role === 'worker' ? {
-        lat: 6.3654 + (Math.random() - 0.5) * 0.1,
-        lng: 2.4183 + (Math.random() - 0.5) * 0.1
-      } : {})
-    };
-    
-    users.push(newUser);
-    localStorage.setItem('ubiri_users', JSON.stringify(users));
-    setCurrentUser(newUser);
-    return newUser;
   }, [setCurrentUser]);
 
   const login = useCallback(async (email, password) => {
-    const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-    const hashed = await secureHash(password);
-    const user = users.find((u) => u.email === email && u.password === hashed);
-    
-    if (!user) throw new Error('Email ou mot de passe incorrect.');
-    
-    setCurrentUser(user);
-    return user;
+    try {
+      const { user, token } = await api.login(email, password);
+      const userWithToken = { ...user, token };
+      setCurrentUser(userWithToken);
+      return userWithToken;
+    } catch (err) {
+      console.error("Login error:", err);
+      throw err;
+    }
   }, [setCurrentUser]);
 
   const logout = useCallback(() => {
@@ -141,64 +145,34 @@ export function AuthProvider({ children }) {
   };
 
   // ── Products ──
-  const getGlobalProducts = useCallback((category = 'all', search = '') => {
-    const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-    const allProducts = users.reduce((acc, u) => {
-      if (u.role === 'worker' && u.products) {
-        const enriched = u.products.map(p => ({
-          ...p,
-          imageUrl: p.imageUrl || (
-            u.trade === 'Plombier' ? plumberImg :
-            u.trade === 'Électricien' ? electricianImg :
-            u.trade === 'Mécanicien' ? mechanicImg :
-            u.trade === 'Menuisier' ? carpenterImg : ''
-          ),
-          workerId: u.id,
-          workerName: u.name,
-          workerTrade: u.trade,
-          workerCity: u.city,
-          lat: u.lat,
-          lng: u.lng,
-          verificationStatus: u.verificationStatus
-        }));
-        return [...acc, ...enriched];
-      }
-      return acc;
-    }, []);
-
-    const q = search.toLowerCase().trim();
-    return allProducts.filter((p) => {
-      const matchCategory = category === 'all' || p.workerTrade?.toLowerCase() === category.toLowerCase();
-      const matchSearch = !q || 
-        (p.name || '').toLowerCase().includes(q) || 
-        (p.description || '').toLowerCase().includes(q) ||
-        (p.workerName || '').toLowerCase().includes(q);
-      return matchCategory && matchSearch;
-    });
+  const getGlobalProducts = useCallback(async (category = 'all', search = '') => {
+    try {
+      const allProducts = await api.getProducts();
+      const q = search.toLowerCase().trim();
+      return allProducts.filter((p) => {
+        const matchCategory = category === 'all' || p.category?.toLowerCase() === category.toLowerCase() || p.workerTrade?.toLowerCase() === category.toLowerCase();
+        const matchSearch = !q || 
+          (p.name || '').toLowerCase().includes(q) || 
+          (p.description || '').toLowerCase().includes(q) ||
+          (p.workerName || '').toLowerCase().includes(q);
+        return matchCategory && matchSearch;
+      });
+    } catch (err) {
+      console.error("Failed to fetch products:", err);
+      return [];
+    }
   }, []);
 
-  const addProduct = useCallback((product) => {
+  const addProduct = useCallback(async (product) => {
     if (!currentUser || currentUser.role !== 'worker') {
       throw new Error("Seuls les ouvriers peuvent ajouter des produits.");
     }
-    const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-    const index = users.findIndex((u) => u.id === currentUser.id);
-    if (index !== -1) {
-      const newProduct = {
-        ...product,
-        id: Date.now(),
-        workerId: currentUser.id,
-        workerName: currentUser.name,
-        workerTrade: currentUser.trade,
-        imageUrl: product.imageUrl || '',
-        views: 0,
-        reviews: [],
-      };
-      users[index].products.push(newProduct);
-      localStorage.setItem('ubiri_users', JSON.stringify(users));
-      setCurrentUser(users[index]);
+    const success = await api.addProduct(product, currentUser.token);
+    if (success) {
+      // Optionnel : re-fetch l'utilisateur pour mettre à jour son état local si nécessaire
     }
-  }, [currentUser, setCurrentUser]);
+    return success;
+  }, [currentUser]);
 
   const incrementProductView = (productId) => {
     const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
@@ -377,59 +351,29 @@ export function AuthProvider({ children }) {
   }, [currentUser]);
 
   // ── Messaging System ──
-  const sendMessage = useCallback((toUserId, text = '', image = null, voice = null) => {
+  const sendMessage = useCallback(async (toUserId, text = '', image = null, voice = null) => {
     if (!currentUser) throw new Error('Vous devez être connecté pour envoyer un message.');
-    const allMessages = JSON.parse(localStorage.getItem('ubiri_messages')) || [];
-    const newMessage = {
-      id: Date.now(),
-      fromId: currentUser.id,
+    const success = await api.sendMessage({
       toId: Number(toUserId),
       text,
-      image, // Base64 string
-      voice, // Base64 audio string
-      date: new Date().toISOString(),
-      read: false,
-      reactions: [], // Array of { emoji, userId }
-    };
-    allMessages.push(newMessage);
-    localStorage.setItem('ubiri_messages', JSON.stringify(allMessages));
-    addNotification(Number(toUserId), 'message', `Nouveau message de ${currentUser.name}`, `/chat/${currentUser.id}`);
-    window.dispatchEvent(new Event('ubiri_new_message'));
-    return newMessage;
-  }, [currentUser, addNotification]);
-
-  const getMessages = useCallback((otherUserId) => {
-    if (!currentUser) return [];
-    const allMessages = JSON.parse(localStorage.getItem('ubiri_messages')) || [];
-    const oid = Number(otherUserId);
-    return allMessages.filter(
-      (m) => (m.fromId === currentUser.id && m.toId === oid) || (m.fromId === oid && m.toId === currentUser.id)
-    );
+      image,
+      voice
+    }, currentUser.token);
+    
+    if (success) {
+      window.dispatchEvent(new Event('ubiri_new_message'));
+    }
+    return success;
   }, [currentUser]);
 
-  const getConversations = useCallback(() => {
+  const getMessages = useCallback(async (otherUserId) => {
     if (!currentUser) return [];
-    const allMessages = JSON.parse(localStorage.getItem('ubiri_messages')) || [];
-    const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-    
-    // Trouver tous les IDs avec qui l'utilisateur a discuté
-    const interlocutorIds = new Set();
-    allMessages.forEach(m => {
-      if (m.fromId === currentUser.id) interlocutorIds.add(m.toId);
-      if (m.toId === currentUser.id) interlocutorIds.add(m.fromId);
-    });
+    return await api.getMessages(otherUserId, currentUser.token);
+  }, [currentUser]);
 
-    return Array.from(interlocutorIds).map(id => {
-      const user = users.find(u => u.id === id);
-      const thread = allMessages.filter(m => (m.fromId === currentUser.id && m.toId === id) || (m.fromId === id && m.toId === currentUser.id));
-      const lastMessage = thread[thread.length - 1];
-      const unreadCount = thread.filter(m => m.toId === currentUser.id && !m.read).length;
-      return {
-        user,
-        lastMessage,
-        unreadCount
-      };
-    }).sort((a, b) => new Date(b.lastMessage.date) - new Date(a.lastMessage.date));
+  const getConversations = useCallback(async () => {
+    if (!currentUser) return [];
+    return await api.getConversations(currentUser.token);
   }, [currentUser]);
 
   const markAsRead = useCallback((otherUserId) => {
@@ -481,98 +425,65 @@ export function AuthProvider({ children }) {
     addNotification, clearNotifications,
     trackInquiry, getWorkerStats,
     sendMessage, getMessages, getConversations, markAsRead, addReaction, getUserById,
+    uploadFile: (file) => api.uploadFile(file, currentUser?.token),
+    socket,
 
     // ── Payment & Escrow System ──
-    createOrder: (workerId, serviceId, amount, serviceName) => {
+    createOrder: async (workerId, serviceId, amount, serviceName) => {
       if (!currentUser) throw new Error('Vous devez être connecté pour payer.');
-      const allOrders = JSON.parse(localStorage.getItem('ubiri_orders')) || [];
-      const newOrder = {
-        id: `ORD-${Date.now()}`,
-        clientId: currentUser.id,
-        clientName: currentUser.name,
+      const order = await api.createOrder({
         workerId: Number(workerId),
         serviceId: Number(serviceId),
-        serviceName,
         amount: Number(amount),
-        commission: Number(amount) * 0.1,
-        netAmount: Number(amount) * 0.9,
-        status: 'escrow', // Paid but held by platform
-        date: new Date().toISOString(),
-      };
-      allOrders.push(newOrder);
-      localStorage.setItem('ubiri_orders', JSON.stringify(allOrders));
+        serviceName
+      }, currentUser.token);
+      
       addNotification(Number(workerId), 'order', `Nouvelle commande de ${currentUser.name} !`, '/dashboard');
-      return newOrder;
+      return order;
     },
 
-    getOrders: () => {
-      const allOrders = JSON.parse(localStorage.getItem('ubiri_orders')) || [];
+    getOrders: async () => {
       if (!currentUser) return [];
-      if (currentUser.role === 'client') {
-        return allOrders.filter(o => o.clientId === currentUser.id);
-      } else {
-        return allOrders.filter(o => o.workerId === currentUser.id);
+      return await api.getOrders(currentUser.token);
+    },
+
+    confirmOrderCompletion: async (orderId) => {
+      if (!currentUser) return;
+      const success = await api.confirmOrderCompletion(orderId, currentUser.token);
+      if (success) {
+        // Optionnel : Notification déjà gérée par le serveur ou à ajouter ici
       }
     },
 
-    confirmOrderCompletion: (orderId) => {
-      const allOrders = JSON.parse(localStorage.getItem('ubiri_orders')) || [];
-      const order = allOrders.find(o => o.id === orderId);
-      if (!order) throw new Error('Commande introuvable.');
-      if (order.clientId !== currentUser.id) throw new Error('Seul le client peut confirmer la fin des travaux.');
-      
-      order.status = 'completed';
-      localStorage.setItem('ubiri_orders', JSON.stringify(allOrders));
-
-      // Verser l'argent sur le portefeuille de l'ouvrier
-      const allWallets = JSON.parse(localStorage.getItem('ubiri_wallets')) || {};
-      const workerWallet = allWallets[order.workerId] || { balance: 0, transactions: [] };
-      workerWallet.balance += order.netAmount;
-      workerWallet.transactions.push({
-        id: `TR-${Date.now()}`,
-        amount: order.netAmount,
-        type: 'income',
-        description: `Service terminé : ${order.serviceName}`,
-        date: new Date().toISOString(),
-      });
-      allWallets[order.workerId] = workerWallet;
-      localStorage.setItem('ubiri_wallets', JSON.stringify(allWallets));
-      addNotification(order.workerId, 'wallet', `Paiement reçu : ${order.netAmount} FCFA versés sur votre portefeuille !`, '/wallet');
-    },
-
-    getWallet: () => {
+    getWallet: async () => {
       if (!currentUser) return { balance: 0, transactions: [] };
-      const allWallets = JSON.parse(localStorage.getItem('ubiri_wallets')) || {};
-      return allWallets[currentUser.id] || { balance: 0, transactions: [] };
+      return await api.getWallet(currentUser.token);
     },
 
     // ── Verification (KYC) System ──
-    submitVerification: (documents) => {
-      if (!currentUser || currentUser.role !== 'worker') throw new Error('Action non autorisée.');
-      const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-      const index = users.findIndex(u => u.id === currentUser.id);
-      if (index !== -1) {
-        users[index].verificationStatus = 'pending';
-        users[index].verificationDocs = documents; // Base64 files
-        localStorage.setItem('ubiri_users', JSON.stringify(users));
-        setCurrentUser(users[index]);
-      }
+    submitKYC: async (kycData) => {
+      if (!currentUser) return;
+      const result = await api.submitKYC(kycData, currentUser.token);
+      setCurrentUserState({ ...currentUser, verificationStatus: 'pending' });
+      return result;
     },
 
-    adminVerifyWorker: (userId, status) => {
-      // Simulate admin validation
-      const users = JSON.parse(localStorage.getItem('ubiri_users')) || [];
-      const index = users.findIndex(u => u.id === Number(userId));
-      if (index !== -1) {
-        users[index].verificationStatus = status; // 'verified' or 'rejected'
-        localStorage.setItem('ubiri_users', JSON.stringify(users));
-        if (currentUser?.id === Number(userId)) {
-          setCurrentUser(users[index]);
-        }
-        addNotification(Number(userId), 'verification', 
-          status === 'verified' ? '🛡️ Votre profil est désormais vérifié !' : '🛡️ Votre demande de vérification a pris du retard.', 
-          '/dashboard'
-        );
+    getKYCStatus: async () => {
+      if (!currentUser) return { status: 'none' };
+      return await api.getKYCStatus(currentUser.token);
+    },
+
+    adminVerifyWorker: async (userId, status) => {
+      const res = await fetch(`http://localhost:5000/api/admin/verify/${userId}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser?.token}`
+        },
+        body: JSON.stringify({ status }),
+      });
+      if (res.ok && currentUser?.id === Number(userId)) {
+        setCurrentUserState({ ...currentUser, verificationStatus: status });
       }
     },
 

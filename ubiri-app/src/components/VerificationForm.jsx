@@ -2,31 +2,41 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 export default function VerificationForm() {
-  const { submitVerification } = useAuth();
+  const { submitKYC, uploadFile } = useAuth();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState({ identity: null, diploma: null });
+  const [previews, setPreviews] = useState({ identity: null, diploma: null });
   const [success, setSuccess] = useState(false);
 
   const handleFileChange = (e, field) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFiles(prev => ({ ...prev, [field]: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      setFiles(prev => ({ ...prev, [field]: file }));
+      setPreviews(prev => ({ ...prev, [field]: URL.createObjectURL(file) }));
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      submitVerification(files);
-      setLoading(false);
+    try {
+      // Upload files first
+      const { url: frontUrl } = await uploadFile(files.identity);
+      const { url: backUrl } = await uploadFile(files.diploma);
+
+      await submitKYC({
+        idType: 'CNI',
+        idFrontUrl: frontUrl,
+        idBackUrl: backUrl
+      });
+      
       setSuccess(true);
-    }, 2000);
+    } catch (err) {
+      alert("Erreur lors de l'envoi : " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (success) {
@@ -68,9 +78,9 @@ export default function VerificationForm() {
                 files.identity ? 'border-blue-600 bg-blue-50/30 dark:bg-blue-900/10' : 'border-gray-200 dark:border-white/10 hover:border-blue-400'
               }`}>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'identity')} />
-                {files.identity ? (
+                {previews.identity ? (
                   <div className="flex flex-col items-center">
-                    <img src={files.identity} className="h-20 w-32 object-cover rounded-xl mb-3 shadow-lg" alt="CNI Preview" />
+                    <img src={previews.identity} className="h-20 w-32 object-cover rounded-xl mb-3 shadow-lg" alt="CNI Preview" />
                     <span className="text-xs font-black text-blue-600 uppercase">Document chargé ✓</span>
                   </div>
                 ) : (
@@ -107,9 +117,9 @@ export default function VerificationForm() {
                 files.diploma ? 'border-blue-600 bg-blue-50/30 dark:bg-blue-900/10' : 'border-gray-200 dark:border-white/10 hover:border-blue-400'
               }`}>
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'diploma')} />
-                {files.diploma ? (
+                {previews.diploma ? (
                   <div className="flex flex-col items-center">
-                    <img src={files.diploma} className="h-20 w-32 object-cover rounded-xl mb-3 shadow-lg" alt="Diploma Preview" />
+                    <img src={previews.diploma} className="h-20 w-32 object-cover rounded-xl mb-3 shadow-lg" alt="Diploma Preview" />
                     <span className="text-xs font-black text-blue-600 uppercase">Document chargé ✓</span>
                   </div>
                 ) : (

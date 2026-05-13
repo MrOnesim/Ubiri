@@ -16,15 +16,18 @@ export default function ServiceDetail() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const products = getGlobalProducts();
-    const found = products.find((p) => String(p.id) === String(id));
-    if (!found) { navigate('/services'); return; }
-    setProduct(found);
-    setSaved(isFavorite(found.id));
-    incrementProductView(found.id);
+    const load = async () => {
+      const products = await getGlobalProducts();
+      const found = products.find((p) => String(p.id) === String(id));
+      if (!found) { navigate('/services'); return; }
+      setProduct(found);
+      setSaved(isFavorite(found.id));
+      incrementProductView(found.id);
+    };
+    load();
   }, [id]);
 
-  const handleReview = (e) => {
+  const handleReview = async (e) => {
     e.preventDefault();
     setError('');
     try {
@@ -32,7 +35,7 @@ export default function ServiceDetail() {
       setShowReviewForm(false);
       setReview({ author: '', rating: 5, comment: '', image: null });
       // Reload product
-      const products = getGlobalProducts();
+      const products = await getGlobalProducts();
       setProduct(products.find((p) => String(p.id) === String(id)));
     } catch (err) {
       setError(err.message);

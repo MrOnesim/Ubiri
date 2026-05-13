@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import MapExplorer from '../components/MapExplorer';
+import VerificationBadge from '../components/VerificationBadge';
 
 const WORKER_DATA = {
   name: 'Kofi Amavi',

@@ -15,8 +15,16 @@ export default function Wallet() {
       navigate('/login');
       return;
     }
-    setWallet(getWallet());
-    setOrders(getOrders().filter(o => o.status === 'escrow'));
+    const fetchData = async () => {
+      const w = await getWallet();
+      const o = await getOrders();
+      setWallet(w);
+      setOrders(o.filter(order => order.status === 'escrow').map(order => ({
+        ...order,
+        netAmount: order.amount * 0.9 // Recalculé pour affichage si nécessaire
+      })));
+    };
+    fetchData();
   }, [currentUser, getWallet, getOrders, navigate]);
 
   const pendingAmount = orders.reduce((sum, o) => sum + o.netAmount, 0);

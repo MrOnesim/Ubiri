@@ -15,8 +15,9 @@ export default function Messages() {
       return;
     }
 
-    const loadConvs = () => {
-      setConversations(getConversations());
+    const loadConvs = async () => {
+      const convs = await getConversations();
+      setConversations(convs);
     };
 
     loadConvs();

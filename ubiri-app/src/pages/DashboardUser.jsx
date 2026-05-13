@@ -9,12 +9,33 @@ export default function DashboardUser() {
   const { currentUser, getFavorites, getOrders, confirmOrderCompletion, getMarketplaceOrders, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('favorites');
+  const [serviceOrders, setServiceOrders] = useState([]);
+  const [shopOrders, setShopOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
 
   useEffect(() => {
     if (!currentUser || currentUser.role !== 'client') {
       navigate('/login');
     }
   }, [currentUser, navigate]);
+
+  useEffect(() => {
+    if (activeTab !== 'orders' || !currentUser) return;
+    setOrdersLoading(true);
+    const load = async () => {
+      try {
+        const allOrders = await getOrders();
+        setServiceOrders((allOrders || []).filter(o => String(o.id).startsWith('ORD-')));
+        const allShop = getMarketplaceOrders ? getMarketplaceOrders() : [];
+        setShopOrders(allShop.filter(o => o.userId === currentUser.id));
+      } catch (err) {
+        console.error('Failed to load orders', err);
+      } finally {
+        setOrdersLoading(false);
+      }
+    };
+    load();
+  }, [activeTab, currentUser]);
 
   if (!currentUser || currentUser.role !== 'client') return null;
 
@@ -117,24 +138,18 @@ export default function DashboardUser() {
           {/* Orders */}
           {activeTab === 'orders' && (
             <div className="space-y-4">
-              {(() => {
-                const { getOrders, confirmOrderCompletion, getMarketplaceOrders } = useAuth();
-                const orders = getOrders();
-                const serviceOrders = orders.filter(o => o.id.startsWith('ORD-'));
-                const shopOrders = getMarketplaceOrders ? getMarketplaceOrders().filter(o => o.userId === currentUser.id) : [];
-
-                if (serviceOrders.length === 0 && shopOrders.length === 0) {
-                  return (
-                    <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-[2rem] border border-dashed border-gray-200 dark:border-white/10">
-                      <div className="text-5xl mb-4">💰</div>
-                      <h2 className="text-xl font-black mb-2">Aucune commande</h2>
-                      <p className="text-gray-500">Vous n'avez pas encore effectué d'achat sur Ubiri.</p>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="space-y-12">
+              {ordersLoading ? (
+                <div className="flex items-center justify-center py-20">
+                  <div className="w-10 h-10 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : serviceOrders.length === 0 && shopOrders.length === 0 ? (
+                <div className="text-center py-20 bg-white dark:bg-gray-900 rounded-[2rem] border border-dashed border-gray-200 dark:border-white/10">
+                  <div className="text-5xl mb-4">💰</div>
+                  <h2 className="text-xl font-black mb-2">Aucune commande</h2>
+                  <p className="text-gray-500">Vous n'avez pas encore effectué d'achat sur Ubiri.</p>
+                </div>
+              ) : (
+                <div className="space-y-12">
                     {/* Prestations Section */}
                     {serviceOrders.length > 0 && (
                       <section>
@@ -222,8 +237,7 @@ export default function DashboardUser() {
                       </section>
                     )}
                   </div>
-                );
-              })()}
+              )}
             </div>
           )}
         </div>

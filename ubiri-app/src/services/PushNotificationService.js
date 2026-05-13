@@ -7,39 +7,61 @@ export const setupPushNotifications = async (userId) => {
     return;
   }
 
-  // Demander la permission
-  let permStatus = await PushNotifications.checkPermissions();
+  try {
+    // 1. Nettoyage des anciens écouteurs pour éviter les doublons lors des re-connexions
+    await PushNotifications.removeAllListeners();
 
-  if (permStatus.receive === 'prompt') {
-    permStatus = await PushNotifications.requestPermissions();
+    // 2. Ajout des écouteurs AVANT l'enregistrement pour éviter les race conditions
+    
+    // Token d'enregistrement (à envoyer au serveur)
+    await PushNotifications.addListener('registration', async (token) => {
+      console.log('Push registration success, token: ' + token.value);
+      
+      // Envoi du token au serveur Node.js pour association avec l'utilisateur
+      try {
+        // Note: L'URL devrait idéalement être configurée via une variable d'environnement
+        await fetch('http://localhost:5000/api/users/push-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: token.value, userId })
+        });
+        console.log('Token push synchronisé avec succès pour l\'utilisateur:', userId);
+      } catch (err) {
+        console.error('Échec de la synchronisation du token sur le serveur:', err);
+      }
+    });
+
+    // Erreurs d'enregistrement
+    await PushNotifications.addListener('registrationError', (error) => {
+      console.error('Error on registration: ' + JSON.stringify(error));
+    });
+
+    // Réception d'une notification (App au premier plan)
+    await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('Push received: ' + JSON.stringify(notification));
+    });
+
+    // Action sur une notification (Clic)
+    await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      console.log('Push action performed: ' + JSON.stringify(action));
+    });
+
+    // 3. Gestion des permissions
+    let permStatus = await PushNotifications.checkPermissions();
+
+    if (permStatus.receive === 'prompt') {
+      permStatus = await PushNotifications.requestPermissions();
+    }
+
+    if (permStatus.receive !== 'granted') {
+      console.warn('Permission de notification refusée par l\'utilisateur');
+      return;
+    }
+
+    // 4. Enregistrement final
+    await PushNotifications.register();
+
+  } catch (error) {
+    console.error('Erreur lors de la configuration des notifications push:', error);
   }
-
-  if (permStatus.receive !== 'granted') {
-    throw new Error('Permission de notification refusée');
-  }
-
-  // Enregistrer pour les notifications
-  await PushNotifications.register();
-
-  // Écouter le token d'enregistrement (à envoyer au serveur Node.js)
-  PushNotifications.addListener('registration', (token) => {
-    console.log('Push registration success, token: ' + token.value);
-    // Ici, on enverrait le token à notre serveur Node.js : 
-    // fetch('http://localhost:5000/api/users/push-token', { method: 'POST', body: JSON.stringify({ token: token.value, userId }) });
-  });
-
-  // Écouter les erreurs
-  PushNotifications.addListener('registrationError', (error) => {
-    console.error('Error on registration: ' + JSON.stringify(error));
-  });
-
-  // Écouter la réception d'une notification (quand l'app est ouverte)
-  PushNotifications.addListener('pushNotificationReceived', (notification) => {
-    console.log('Push received: ' + JSON.stringify(notification));
-  });
-
-  // Écouter le clic sur une notification
-  PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-    console.log('Push action performed: ' + JSON.stringify(action));
-  });
 };

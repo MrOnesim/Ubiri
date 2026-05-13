@@ -76,8 +76,11 @@ export default function Home() {
     const c3 = useCounter(98);
 
     useEffect(() => {
-        const products = getGlobalProducts();
-        setLatestProducts(products.sort((a, b) => b.id - a.id).slice(0, 3));
+        const fetchLatest = async () => {
+            const products = await getGlobalProducts();
+            setLatestProducts(products.sort((a, b) => b.id - a.id).slice(0, 3));
+        };
+        fetchLatest();
     }, [getGlobalProducts]);
 
     // Stats intersection observer - wait for splash to be done

@@ -64,7 +64,11 @@ export default function Services() {
   }, [searchParams]);
 
   useEffect(() => {
-    setProducts(getGlobalProducts(category, search));
+    const fetchProducts = async () => {
+      const p = await getGlobalProducts(category, search);
+      setProducts(p);
+    };
+    fetchProducts();
   }, [category, search, getGlobalProducts]);
 
   useEffect(() => {
