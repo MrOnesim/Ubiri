@@ -1,13 +1,10 @@
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import ceoAvatar from '../assets/images/ceo.png';
-import ctoAvatar from '../assets/images/cto.png';
-
 export default function About() {
   const team = [
-    { name: 'Kouassi A.', role: 'CEO & Fondateur', avatar: ceoAvatar, color: 'green' },
-    { name: 'Fatima D.', role: 'CTO', avatar: ctoAvatar, color: 'blue' },
+    { name: 'Kouassi A.', role: 'CEO & Fondateur', initials: 'KA', color: 'green' },
+    { name: 'Fatima D.', role: 'CTO', initials: 'FD', color: 'blue' },
     { name: 'Omar S.', role: 'Head of Design', initials: 'OS', color: 'purple' },
   ];
 
@@ -37,7 +34,7 @@ export default function About() {
         </svg>
       ), 
       title: 'Impact local', 
-      desc: "Nous valorisons les talents locaux et dynamisisons l'économie africaine." 
+      desc: "Nous valorisons les talents locaux et dynamisent l'économie africaine." 
     },
   ];
 

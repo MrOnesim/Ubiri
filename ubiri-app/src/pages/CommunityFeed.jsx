@@ -38,12 +38,13 @@ export default function CommunityFeed() {
   }, []);
 
   const handleLike = (workerId, postId) => {
+    if (!currentUser) return;
     toggleLikeIntervention(workerId, postId);
     // Refresh local state
     const updated = posts.map(p => {
       if (p.id === postId) {
         const likes = p.likes || [];
-        const hasLiked = likes.includes(currentUser?.id);
+        const hasLiked = currentUser && likes.includes(currentUser.id);
         return {
           ...p,
           likes: hasLiked ? likes.filter(id => id !== currentUser.id) : [...likes, currentUser.id]

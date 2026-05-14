@@ -31,7 +31,7 @@ export default function ServiceDetail() {
     e.preventDefault();
     setError('');
     try {
-      addProductReview(product.id, review);
+      addProductReview(product.id, { ...review, image: review.image || null });
       setShowReviewForm(false);
       setReview({ author: '', rating: 5, comment: '', image: null });
       // Reload product
@@ -148,17 +148,17 @@ export default function ServiceDetail() {
                         className="w-full bg-white dark:bg-gray-700 border border-neutral-200 dark:border-white/10 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500/30" />
                       <select value={review.rating} onChange={(e) => setReview({ ...review, rating: +e.target.value })}
                         className="w-full bg-white dark:bg-gray-700 border border-neutral-200 dark:border-white/10 rounded-xl px-4 py-3 outline-none">
-                        {[5,4,3,2,1].map((r) => <option key={r} value={r}>{r} étoile{r > 1 ? 's' : ''}</option>)}
+                        {[5, 4, 3, 2, 1].map((r) => <option key={r} value={r}>{r} étoile{r > 1 ? 's' : ''}</option>)}
                       </select>
                     </div>
                     <textarea placeholder="Décrivez votre expérience..." required value={review.comment} rows={3}
                       onChange={(e) => setReview({ ...review, comment: e.target.value })}
                       className="w-full bg-white dark:bg-gray-700 border border-neutral-200 dark:border-white/10 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-green-500/30 resize-none" />
-                    
+
                     <div className="flex items-center gap-4">
                       <label className="flex-1 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer hover:border-green-400 transition-all">
                         <input type="file" accept="image/*" className="hidden" onChange={handleReviewImage} />
-                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                         <span className="text-[10px] font-bold text-gray-500 uppercase">{review.image ? 'Image ajoutée ✓' : 'Ajouter une photo du travail'}</span>
                       </label>
                       <button type="submit" className="bg-green-600 text-white font-black px-8 py-3 rounded-xl hover:shadow-lg shadow-green-500/20 transition-all text-sm">Publier</button>
@@ -187,7 +187,7 @@ export default function ServiceDetail() {
                       </div>
                     </div>
                     <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 leading-relaxed">{r.comment}</p>
-                    
+
                     {r.image && (
                       <div className="w-32 h-32 rounded-xl overflow-hidden mb-4 border border-gray-100 dark:border-white/5 shadow-sm group cursor-zoom-in">
                         <img src={r.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Preuve du travail" />
@@ -217,7 +217,7 @@ export default function ServiceDetail() {
                   <VerificationBadge status={product.verificationStatus || 'none'} size="sm" />
                 </div>
                 <p className="text-gray-500 text-sm mb-6">{product.workerTrade}</p>
-                <button 
+                <button
                   onClick={() => {
                     if (!currentUser) { navigate('/login'); return; }
                     navigate(`/checkout/${product.id}`);
@@ -231,13 +231,12 @@ export default function ServiceDetail() {
                 </button>
                 <div className="flex gap-2 mb-3">
                   <button onClick={handleFavorite}
-                    className={`flex-1 font-bold py-3 rounded-2xl transition-all border-2 flex items-center justify-center gap-2 ${
-                      saved ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-neutral-100 text-gray-500'
-                    }`}>
+                    className={`flex-1 font-bold py-3 rounded-2xl transition-all border-2 flex items-center justify-center gap-2 ${saved ? 'bg-green-50 border-green-200 text-green-600' : 'bg-white border-neutral-100 text-gray-500'
+                      }`}>
                     <svg className="w-4 h-4" fill={saved ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" /></svg>
                     <span>Favori</span>
                   </button>
-                  <button 
+                  <button
                     onClick={() => {
                       if (!currentUser) { navigate('/login'); return; }
                       navigate(`/chat/${product.workerId}`);

@@ -205,10 +205,10 @@ export default function Home() {
                                     >
                                         {i === 2 ? (
                                             <span
-                                                className="text-green-500"
+                                                className="text-green-500 neon-text"
                                                 style={{
                                                     animation:
-                                                        "pulse-green 3s infinite",
+                                                        "pulse 3s infinite",
                                                 }}
                                             >
                                                 {word}
@@ -886,7 +886,7 @@ export default function Home() {
                 {/* NEWSLETTER SECTION */}
                 <section className="py-24 px-6 bg-green-600 dark:bg-green-700 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-black/10 rounded-full blur-3xl translate-y-1/2 -translateX-1/2"></div>
+                    <div className="absolute bottom-0 left-0 w-96 h-96 bg-black/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/2"></div>
 
                     <div className="max-w-4xl mx-auto text-center relative z-10">
                         <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-8 border border-white/20">

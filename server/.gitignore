@@ -1,0 +1,5 @@
+node_modules/
+ubiri.db
+uploads/
+.env
+*.log

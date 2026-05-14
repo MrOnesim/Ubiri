@@ -12,8 +12,9 @@ const WORKER_DATA = {
   city: 'Cotonou, Bénin',
   rating: 4.8,
   reviewsCount: 24,
-  interventions: 47,
+  interventionsCount: 47,
   years: 6,
+  interventions: [],
   successRate: 98,
   responseTime: '~30min',
   bio: "Artisan plombier avec plus de 6 ans d'expérience à Cotonou et ses environs. Spécialisé dans la réparation de fuites, l'installation sanitaire et la plomberie industrielle. Je réponds rapidement et travaille proprement, avec des matériaux de qualité.",
@@ -277,7 +278,11 @@ export default function Profil() {
                   <div className="text-2xl font-bold text-green-700 dark:text-green-400 mt-2">{WORKER_DATA.rate}</div>
                   <p className="text-xs text-green-600 dark:text-green-500 mt-1">Devis gratuit sur demande</p>
                 </div>
-                     {/* TAB: Realizations (Portfolio) */}
+              </div>
+            </div>
+          )}
+
+          {/* TAB: Realizations (Portfolio) */}
           {activeTab === 'interventions' && (
             <div className="fade-up">
               <div className="flex items-center justify-between mb-8">
@@ -300,9 +305,9 @@ export default function Profil() {
                         
                         {/* Status Tag */}
                         <div className="absolute top-4 left-4">
-<span className="bg-white/90 backdrop-blur text-black dark:text-black text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">
-                             {interv.title || 'Réalisation'}
-                           </span>
+                          <span className="bg-white/90 backdrop-blur text-black dark:text-black text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg">
+                            {interv.title || 'Réalisation'}
+                          </span>
                         </div>
 
                         {/* Like Button */}
@@ -355,9 +360,6 @@ export default function Profil() {
                   <p className="text-gray-400 max-w-xs mx-auto">Revenez bientôt pour découvrir les derniers travaux de {worker.name}.</p>
                 </div>
               )}
-            </div>
-          )}
-         </div>
             </div>
           )}
 

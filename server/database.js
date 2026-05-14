@@ -3,8 +3,9 @@ const { open } = require('sqlite');
 
 async function setupDb() {
   const isTest = process.env.NODE_ENV === 'test';
+  const dbPath = isTest ? ':memory:' : (process.env.DB_PATH || './ubiri.db');
   const db = await open({
-    filename: isTest ? ':memory:' : './ubiri.db',
+    filename: dbPath,
     driver: sqlite3.Database
   });
 

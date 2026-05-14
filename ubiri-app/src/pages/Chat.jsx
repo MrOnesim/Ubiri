@@ -92,18 +92,28 @@ export default function Chat() {
   const audioChunksRef = useRef([]);
 
   const startRecording = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    mediaRecorderRef.current = new MediaRecorder(stream);
-    audioChunksRef.current = [];
-    mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data);
-    mediaRecorderRef.current.onstop = async () => {
-      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-      const file = new File([blob], "voice_msg.webm", { type: 'audio/webm' });
-      const { url } = await uploadFile(file);
-      await sendMessage(id, '', null, url);
-    };
-    mediaRecorderRef.current.start();
-    setIsRecording(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorderRef.current = new MediaRecorder(stream);
+      audioChunksRef.current = [];
+      mediaRecorderRef.current.ondataavailable = (e) => audioChunksRef.current.push(e.data);
+      mediaRecorderRef.current.onstop = async () => {
+        const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const file = new File([blob], "voice_msg.webm", { type: 'audio/webm' });
+        try {
+          const { url } = await uploadFile(file);
+          await sendMessage(id, '', null, url);
+        } catch (err) {
+          console.error('Failed to upload voice message:', err);
+          alert('Échec de l\'envoi du message vocal');
+        }
+      };
+      mediaRecorderRef.current.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      alert('Impossible d\'accéder au microphone. Vérifiez les permissions.');
+    }
   };
 
   const stopRecording = () => {
